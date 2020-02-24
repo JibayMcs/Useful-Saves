@@ -1,0 +1,132 @@
+buildscript {
+    repositories {
+        maven { url = 'https://files.minecraftforge.net/maven' }
+        jcenter()
+        mavenCentral()
+    }
+    dependencies {
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '3.+', changing: true
+        classpath "com.github.jengelman.gradle.plugins:shadow:4.0.4"
+    }
+}
+apply plugin: 'net.minecraftforge.gradle'
+
+apply plugin: 'eclipse'
+apply plugin: 'maven-publish'
+apply plugin: "com.github.johnrengelman.shadow"
+
+version = '0.0.3'
+group = 'fr.zeamateis.usefulsaves'
+archivesBaseName = 'usefulsaves'
+
+sourceCompatibility = targetCompatibility = compileJava.sourceCompatibility = compileJava.targetCompatibility = '1.8' // Need this here so eclipse task generates correctly.
+
+minecraft {
+    mappings channel: 'snapshot', version: '20190719-1.14.3'
+    // makeObfSourceJar = false // an Srg named sources jar is made by default. uncomment this to disable
+    // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+
+    runs {
+        client {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
+            property 'forge.logging.console.level', 'info'
+            mods {
+                usefulsaves {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        server {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
+            property 'forge.logging.console.level', 'info'
+            mods {
+                usefulsaves {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        data {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'SCAN,REGISTRIES,REGISTRYDUMP'
+            property 'forge.logging.console.level', 'info'
+            args '--mod', 'usefulsaves', '--all', '--output', file('src/generated/resources/')
+            mods {
+                usefulsaves {
+                    source sourceSets.main
+                }
+            }
+        }
+    }
+}
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.15.2-31.1.0'
+    // https://mvnrepository.com/artifact/org.quartz-scheduler/quartz
+    shadow group: 'org.quartz-scheduler', name: 'quartz', version: '2.3.2'
+}
+
+jar {
+    manifest {
+        attributes([
+                "Specification-Title"     : "usefulsaves",
+                "Specification-Vendor"    : "zeamateis",
+                "Specification-Version"   : "1",
+                "Implementation-Title"    : project.name,
+                "Implementation-Version"  : "${version}",
+                "Implementation-Vendor"   : "zeamateis",
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+}
+
+def reobfFile = file("$buildDir/reobfJar/output.jar")
+def reobfArtifact = artifacts.add('default', reobfFile) {
+    type 'jar'
+    builtBy 'reobfJar'
+}
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifact reobfArtifact
+        }
+    }
+    repositories {
+        maven {
+            url "file:///${project.projectDir}/mcmodsrepo"
+        }
+    }
+}
+
+shadowJar {
+    configurations = [project.configurations.shadow]
+    manifest {
+        attributes([
+                "Specification-Title"     : archivesBaseName,
+                "Specification-Vendor"    : "ZeAmateis",
+                "Specification-Version"   : "1",
+                "Implementation-Title"    : project.name,
+                "Implementation-Version"  : "${version}",
+                "Implementation-Vendor"   : "zeamateis",
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                'Built-By'                : System.properties['user.name'],
+                'Created-By'              : "Gradle ${gradle.gradleVersion}",
+                'Build-Jdk'               : "${System.properties['java.version']} (${System.properties['java.vendor']} ${System.properties['java.vm.version']})",
+                'Build-OS'                : "${System.properties['os.name']} ${System.properties['os.arch']} ${System.properties['os.version']}"
+        ])
+    }
+    classifier ''
+}
+
+reobf {
+    shadowJar {}
+}
+
+artifacts {
+    archives shadowJar
+}
+
+tasks.build.dependsOn reobfShadowJar

@@ -1,0 +1,13 @@
+{
+  "usefulsaves.message.save.saving": "[§9§oUseful Saves§r] - Saving the game (this may take a moment!)",
+  "usefulsaves.message.save.savingSuccess": "[§9§oUseful Saves§r] - Saved backup as §n%s§r !",
+  "usefulsaves.message.save.backupSize": "[§9§oUseful Saves§r] - Backup size: §l%s§r",
+  "usefulsaves.message.delete.confirm_one": "[§9§oUseful Saves§r] - §n%s§r will be deleted.",
+  "usefulsaves.message.delete.confirm_two": "[§9§oUseful Saves§r] - Type \"/useful-saves confirm yes/no\" to confirm.",
+  "usefulsaves.message.confirm.delete": "[§9§oUseful Saves§r] - §n%s§r successfully deleted from backup folder !",
+  "usefulsaves.message.backupCount": "[§9§oUseful Saves§r] - There are §l%d§r backups in folder",
+  "usefulsaves.message.backupCount.empty": "[§9§oUseful Saves§r] - Backup folder is empty !",
+  "usefulsaves.message.clearBackupFolder": "[§9§oUseful Saves§r] - Backups folder cleaned !",
+  "usefulsaves.message.scheduled.stop": "[§9§oUseful Saves§r] - Scheduled task stopped !",
+  "usefulsaves.message.scheduled.stop.notRunning": "[§9§oUseful Saves§r] - No schduled task currently running !"
+}

@@ -1,0 +1,27 @@
+modLoader="javafml"
+loaderVersion="[31,)"
+#issueTrackerURL="http://my.issue.tracker/"
+
+[[mods]]
+modId="usefulsaves"
+version="${file.jarVersion}"
+displayName="Useful Saves"
+#updateJSONURL="http://myurl.me/"
+#displayURL="http://example.com/"
+#logoFile="examplemod.png"
+credits="Thanks to OMGServ to bring me this idea to saves files"
+authors="ZeAmateis, Protozis"
+#description=''''''
+
+[[dependencies.usefulsaves]]
+    modId="forge"
+    mandatory=true
+    versionRange="[31,)"
+    ordering="NONE"
+    side="BOTH"
+[[dependencies.usefulsaves]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.15.2]"
+    ordering="NONE"
+    side="BOTH"
