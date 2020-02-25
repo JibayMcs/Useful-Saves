@@ -1,4 +1,4 @@
-package fr.zeamateis.usefulsaves.server.task;
+package fr.zeamateis.usefulsaves.server.job;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
@@ -9,23 +9,28 @@ import fr.zeamateis.usefulsaves.util.ZipUtils;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.TranslationTextComponent;
 import org.apache.commons.io.FileUtils;
+import org.quartz.*;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+
 /**
+ * Main Job class to backup files
+ * <p>
+ * {@link DisallowConcurrentExecution} prevent multiple SaveJob instances running
+ *
  * @author ZeAmateis
  */
-public class SaveTask implements Runnable {
+@DisallowConcurrentExecution
+public class SaveJob implements Job {
     private static final SimpleCommandExceptionType FAILED_EXCEPTION = new SimpleCommandExceptionType(new TranslationTextComponent("commands.save.failed"));
 
-    private final MinecraftServer server;
+    private MinecraftServer server;
+    private boolean flush;
+    private ZipUtils zipUtils;
 
-    private final boolean flush;
-
-    private final ZipUtils zipUtils;
-
-    public SaveTask(MinecraftServer server, boolean flush) {
+    public void setup(MinecraftServer server, boolean flush) {
         this.server = server;
         this.flush = flush;
         String folderName = this.server.getFolderName().replaceAll("\\s+", "-");
@@ -37,7 +42,7 @@ public class SaveTask implements Runnable {
         this.zipUtils.zipIt(server.getServerTime());
     }
 
-    public void save() throws CommandSyntaxException {
+    public void processSave() {
         if (saveIfServerEmpty()) {
             MessageUtils.printMessageForAllPlayers(server, new TranslationTextComponent("usefulsaves.message.save.saving"));
             //Console Print
@@ -47,7 +52,10 @@ public class SaveTask implements Runnable {
             boolean flag = server.save(true, flush, true);
 
             if (!flag) {
-                throw FAILED_EXCEPTION.create();
+                try {
+                    throw FAILED_EXCEPTION.create();
+                } catch (CommandSyntaxException ignored) {
+                }
             } else {
                 createZipFile();
                 Path lastSavePath = Paths.get(this.zipUtils.outputFileName);
@@ -65,32 +73,33 @@ public class SaveTask implements Runnable {
     private boolean saveIfServerEmpty() {
         if (UsefulSavesConfig.Common.saveIfServerEmpty.get() && server.getPlayerList().getPlayers().isEmpty())
             return true;
-        else if (!server.getPlayerList().getPlayers().isEmpty())
-            return true;
-        else return false;
+        else return !server.getPlayerList().getPlayers().isEmpty();
     }
 
     /**
-     * When an object implementing interface <code>Runnable</code> is used
-     * to create a thread, starting the thread causes the object's
-     * <code>run</code> method to be called in that separately executing
-     * thread.
      * <p>
-     * The general contract of the method <code>run</code> is that it may
-     * take any action whatsoever.
+     * Called by the <code>{@link org.quartz.Scheduler}</code> when a <code>{@link org.quartz.Trigger}</code>
+     * fires that is associated with the <code>Job</code>.
+     * </p>
      *
-     * @see Thread#run()
+     * <p>
+     * The implementation may wish to set a
+     * {@link JobExecutionContext#setResult(Object) result} object on the
+     * {@link JobExecutionContext} before this method exits.  The result itself
+     * is meaningless to Quartz, but may be informative to
+     * <code>{@link org.quartz.JobListener}s</code> or
+     * <code>{@link org.quartz.TriggerListener}s</code> that are watching the job's
+     * execution.
+     * </p>
+     *
+     * @param context
+     * @throws JobExecutionException if there is an exception while executing the job.
      */
     @Override
-    public void run() {
-        try {
-            save();
-        } catch (CommandSyntaxException e) {
-            e.printStackTrace();
-        }
+    public void execute(JobExecutionContext context) throws JobExecutionException {
+        JobDataMap jobDataMap = context.getJobDetail().getJobDataMap();
+        this.setup((MinecraftServer) jobDataMap.get("server"), jobDataMap.getBoolean("flush"));
+        this.processSave();
     }
 
-    public ZipUtils getZipUtils() {
-        return zipUtils;
-    }
 }
