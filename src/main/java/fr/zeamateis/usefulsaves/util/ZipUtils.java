@@ -1,95 +1,141 @@
 package fr.zeamateis.usefulsaves.util;
 
-import fr.zeamateis.usefulsaves.server.config.UsefulSavesConfig;
+import fr.zeamateis.usefulsaves.UsefulSaves;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+/**
+ * @author ZeAmateis
+ */
 public class ZipUtils {
 
-    private final File outputZip;
-    private final File sourceFolder;
+    /**
+     * Multiple source path to be zipped
+     */
+    private final List<Path> sourceWhitelist = new ArrayList<>();
 
-    public String outputFileName;
+    /**
+     * Zipped save path
+     */
+    private Path outputSavePath;
 
-    private List<String> fileList;
+    /**
+     * Whether to delete the existing zip file under destination dir with zipName
+     */
+    private boolean deleteExisting;
 
-    public ZipUtils(String outputZip, String sourceFolder) {
-        this.fileList = new ArrayList<String>();
-        this.outputZip = new File(outputZip);
-        this.sourceFolder = new File(sourceFolder);
+    public List<Path> getSourceWhitelist() {
+        return sourceWhitelist;
     }
 
-    public void zipIt(long serverTime) {
-        byte[] buffer = new byte[1024];
-        String source = sourceFolder.getName();
-        FileOutputStream fos;
-        ZipOutputStream zos = null;
-        try {
-            Date date = new Date(serverTime);
-            DateFormat formatter = new SimpleDateFormat("HH-mm-ss-SSS");
-            outputFileName = String.format("%s-%s.zip", outputZip, formatter.format(date));
-            fos = new FileOutputStream(outputFileName);
-            zos = new ZipOutputStream(fos);
-            //Compression level
-            zos.setLevel(UsefulSavesConfig.Common.backupCompression.get());
 
-            FileInputStream in = null;
+    public Path getOutputSavePath() {
+        return outputSavePath;
+    }
 
-            for (String file : this.fileList) {
-                ZipEntry ze = new ZipEntry(source + File.separator + file);
-                zos.putNextEntry(ze);
-                try {
-                    in = new FileInputStream(sourceFolder + File.separator + file);
-                    int len;
-                    while ((len = in.read(buffer)) > 0) {
-                        zos.write(buffer, 0, len);
+    public void setOutputSavePath(Path outputSavePath) {
+        this.outputSavePath = outputSavePath;
+    }
+
+    public boolean isDeleteExisting() {
+        return deleteExisting;
+    }
+
+    public void setDeleteExisting(boolean deleteExisting) {
+        this.deleteExisting = deleteExisting;
+    }
+
+    /**
+     * Method to assemble, and zip future save
+     *
+     * @throws IOException
+     */
+    public void createSave() throws IOException {
+
+        File outputZipSave = outputSavePath.toFile();
+        boolean exists = outputZipSave.exists();
+        if (exists && deleteExisting && !outputZipSave.delete()) {
+            throw new RuntimeException("cannot delete existing zip file: " +
+                    outputZipSave.getAbsolutePath());
+        } else if (exists && !deleteExisting) {
+            UsefulSaves.getLogger().info("Zip file already exists: " +
+                    outputZipSave.getAbsolutePath());
+            return;
+        }
+
+        createSaveArchive(outputZipSave);
+    }
+
+    /**
+     * Create save archive
+     */
+    private void createSaveArchive(File destination) throws IOException {
+        if (!sourceWhitelist.isEmpty()) {
+            try (ZipOutputStream out = new ZipOutputStream(
+                    new BufferedOutputStream(new
+                            FileOutputStream(destination)))) {
+
+                for (Path sourceDir : sourceWhitelist) {
+                    File sourceDirFile = sourceDir.toFile();
+                    if (!sourceDirFile.exists()) {
+                        throw new RuntimeException("Source dir doesn't exists "
+                                + sourceDirFile);
                     }
-                } finally {
-                    in.close();
+
+                    addDirRecursively(sourceDirFile.getName(),
+                            sourceDirFile.getAbsolutePath(),
+                            sourceDirFile,
+                            out);
                 }
             }
-            zos.closeEntry();
-        } catch (IOException ex) {
-            ex.printStackTrace();
-        } finally {
-            try {
-                zos.close();
-            } catch (IOException e) {
-                e.printStackTrace();
+        } else UsefulSaves.getLogger().warn("Whitelist of files to save are empty. Save not created.");
+    }
+
+    private String fileToRelativePath(File file, String baseDir) {
+        return file.getAbsolutePath()
+                .substring(baseDir.length() + 1);
+    }
+
+    private void addDirRecursively(String baseDirName,
+                                   String baseDir,
+                                   File dirFile,
+                                   final ZipOutputStream out) throws IOException {
+
+
+        File[] files = dirFile.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    addDirRecursively(baseDirName, baseDir, file, out);
+                    continue;
+                }
+
+                ZipEntry zipEntry = new ZipEntry(baseDirName + File.separatorChar +
+                        fileToRelativePath(file, baseDir));
+                BasicFileAttributes attr = Files.readAttributes(file.toPath(), BasicFileAttributes.class);
+                zipEntry.setLastModifiedTime(attr.lastModifiedTime());
+                zipEntry.setCreationTime(attr.creationTime());
+                zipEntry.setLastAccessTime(attr.lastAccessTime());
+                zipEntry.setTime(attr.lastModifiedTime().toMillis());
+
+                out.putNextEntry(zipEntry);
+                try (BufferedInputStream in = new BufferedInputStream(new
+                        FileInputStream(file))) {
+                    byte[] b = new byte[1024];
+                    int count;
+                    while ((count = in.read(b)) > 0) {
+                        out.write(b, 0, count);
+                    }
+                    out.closeEntry();
+                }
             }
         }
-    }
-
-    public void generateFileList(File node) {
-        // add file only
-        if (node.isFile()) {
-            if (node.length() > 0)
-                fileList.add(generateZipEntry(node.toString()));
-        }
-
-        if (node.isDirectory()) {
-            String[] subNote = node.list();
-            for (String filename : subNote) {
-                generateFileList(new File(node, filename));
-            }
-        }
-    }
-
-    private String generateZipEntry(String file) {
-        return file.substring(sourceFolder.getName().length() + 1, file.length());
-    }
-
-    public enum CompressionLevel {
-
     }
 }

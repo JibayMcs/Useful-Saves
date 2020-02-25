@@ -8,6 +8,8 @@ import net.minecraft.server.MinecraftServer;
 import org.quartz.*;
 import org.quartz.impl.StdSchedulerFactory;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -114,9 +116,17 @@ public class SchedulerManager {
 
             saveJob.getJobDataMap().put("server", server);
             saveJob.getJobDataMap().put("flush", flush);
+            //TODO Define in config
+            //But pretty useless to define now for external user
+            saveJob.getJobDataMap().put("deleteExisting", false);
 
-            setStatus(SchedulerStatus.RUNNING);
+            List<Path> paths = UsefulSavesConfig.Common.savedFileWhitelist.get().stream().map(Paths::get).collect(Collectors.toList());
+            if (!paths.isEmpty()) {
+                saveJob.getJobDataMap().putIfAbsent("sourceWhitelist", paths);
+            }
+
             scheduler.scheduleJob(saveJob, triggers, true);
+            setStatus(SchedulerStatus.RUNNING);
         } catch (SchedulerException e) {
             e.printStackTrace();
         }

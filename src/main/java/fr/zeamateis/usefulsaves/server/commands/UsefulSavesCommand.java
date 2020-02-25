@@ -241,8 +241,11 @@ public class UsefulSavesCommand {
      */
     private static int processSave(MinecraftServer server, boolean flush) {
         SaveJob saveJob = new SaveJob();
-        saveJob.setup(server, flush);
-        saveJob.processSave();
+        List<Path> paths = UsefulSavesConfig.Common.savedFileWhitelist.get().stream().map(Paths::get).collect(Collectors.toList());
+        if (!paths.isEmpty()) {
+            saveJob.setup(server, flush, false, paths);
+            saveJob.processSave();
+        }
         return 1;
     }
 

@@ -11,8 +11,17 @@ import net.minecraft.util.text.TranslationTextComponent;
 import org.apache.commons.io.FileUtils;
 import org.quartz.*;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.*;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Stream;
 
 
 /**
@@ -28,18 +37,21 @@ public class SaveJob implements Job {
 
     private MinecraftServer server;
     private boolean flush;
-    private ZipUtils zipUtils;
+    private ZipUtils zipUtils = new ZipUtils();
 
-    public void setup(MinecraftServer server, boolean flush) {
+    /**
+     * Setup the Save task
+     *
+     * @param server          The {@link MinecraftServer} instance
+     * @param flush           Flush save ?
+     * @param deleteExisting  Delete existing save ? (on duplicated names)
+     * @param sourceWhitelist Whitelist of folders and file to add in save archive
+     */
+    public void setup(MinecraftServer server, boolean flush, boolean deleteExisting, List<Path> sourceWhitelist) {
         this.server = server;
         this.flush = flush;
-        String folderName = this.server.getFolderName().replaceAll("\\s+", "-");
-        this.zipUtils = new ZipUtils(String.format("%s/%s", UsefulSaves.getInstance().getBackupFolder(), folderName), folderName);
-    }
-
-    private void createZipFile() {
-        this.zipUtils.generateFileList(FileUtils.getFile(server.getFolderName()));
-        this.zipUtils.zipIt(server.getServerTime());
+        this.zipUtils.setDeleteExisting(deleteExisting);
+        this.zipUtils.getSourceWhitelist().addAll(sourceWhitelist);
     }
 
     public void processSave() {
@@ -57,12 +69,24 @@ public class SaveJob implements Job {
                 } catch (CommandSyntaxException ignored) {
                 }
             } else {
-                createZipFile();
-                Path lastSavePath = Paths.get(this.zipUtils.outputFileName);
-                MessageUtils.printMessageForAllPlayers(server, new TranslationTextComponent("usefulsaves.message.save.savingSuccess", lastSavePath.getFileName()));
-                MessageUtils.printMessageForAllPlayers(server, new TranslationTextComponent("usefulsaves.message.save.backupSize", FileUtils.byteCountToDisplaySize(lastSavePath.toFile().length())));
-                //Console print
-                MessageUtils.printMessageInConsole("Success saving for %s, %s file size", lastSavePath.getFileName(), FileUtils.byteCountToDisplaySize(lastSavePath.toFile().length()));
+                //Create zipped file
+                Date date = new Date(server.getServerTime());
+                DateFormat formatter = new SimpleDateFormat("HH-mm-ss-SSS");
+                server.getWorlds().forEach(serverWorld -> {
+                    Path outputCompressedSave = Paths.get(UsefulSaves.getInstance().getBackupFolder().getPath(), String.format("%s-%s.zip", server.getFolderName().replaceAll("[^\\dA-Za-z ]", "").replaceAll("\\s+", "-"), formatter.format(date)));
+                    this.zipUtils.setOutputSavePath(outputCompressedSave);
+                    this.zipUtils.getSourceWhitelist().add(serverWorld.getSaveHandler().getWorldDirectory().toPath());
+                    this.zipUtils.getSourceWhitelist().forEach(path -> System.out.println(path.toString()));
+                    try {
+                        this.zipUtils.createSave();
+                        MessageUtils.printMessageForAllPlayers(server, new TranslationTextComponent("usefulsaves.message.save.savingSuccess", outputCompressedSave.getFileName()));
+                        MessageUtils.printMessageForAllPlayers(server, new TranslationTextComponent("usefulsaves.message.save.backupSize", FileUtils.byteCountToDisplaySize(outputCompressedSave.toFile().length())));
+                        //Console print
+                        MessageUtils.printMessageInConsole("Success saving for %s, %s file size", outputCompressedSave.getFileName(), FileUtils.byteCountToDisplaySize(outputCompressedSave.toFile().length()));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                });
             }
         }
     }
@@ -75,6 +99,62 @@ public class SaveJob implements Job {
             return true;
         else return !server.getPlayerList().getPlayers().isEmpty();
     }
+
+
+    /**
+     * This creates a Zip file at the location specified by zip
+     * containing the full directory tree rooted at contents
+     *
+     * @param zip      the zip file, this must not exist
+     * @param contents the root of the directory tree to copy
+     * @throws IOException, specific exceptions thrown for specific errors
+     */
+    public void createZip(final Path zip, final Path contents) throws IOException {
+        if (Files.exists(zip)) {
+            throw new FileAlreadyExistsException(zip.toString());
+        }
+        if (!Files.exists(contents)) {
+            throw new FileNotFoundException("The location to zip must exist");
+        }
+        final Map<String, String> env = new HashMap<>();
+        //creates a new Zip file rather than attempting to read an existing one
+        env.put("create", "true");
+        // locate file system by using the syntax
+        // defined in java.net.JarURLConnection
+
+        final URI uri = URI.create("jar:" + zip.toFile().toURI());
+        try (final FileSystem zipFileSystem = FileSystems.newFileSystem(uri.normalize(), env)) {
+            final Stream<Path> files = Files.walk(contents);
+            {
+                final Path root = zipFileSystem.getPath("/");
+                files.forEach(file -> {
+                    try {
+                        copyToZip(root, contents, file);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+            }
+        }
+    }
+
+    /**
+     * Copy a specific file/folder to the zip archive
+     * If the file is a folder, create the folder. Otherwise copy the file
+     *
+     * @param root     the root of the zip archive
+     * @param contents the root of the directory tree being copied, for relativization
+     * @param file     the specific file/folder to copy
+     */
+    private void copyToZip(final Path root, final Path contents, final Path file) throws IOException {
+        final Path to = root.resolve(contents.relativize(file).toString());
+        if (Files.isDirectory(file)) {
+            Files.createDirectories(to);
+        } else {
+            Files.copy(file, to);
+        }
+    }
+
 
     /**
      * <p>
@@ -98,7 +178,12 @@ public class SaveJob implements Job {
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
         JobDataMap jobDataMap = context.getJobDetail().getJobDataMap();
-        this.setup((MinecraftServer) jobDataMap.get("server"), jobDataMap.getBoolean("flush"));
+
+        this.setup(
+                (MinecraftServer) jobDataMap.get("server"),
+                jobDataMap.getBoolean("flush"),
+                jobDataMap.getBoolean("deleteExisting"),
+                (List<Path>) jobDataMap.get("sourceWhitelist"));
         this.processSave();
     }
 

@@ -3,6 +3,8 @@ package fr.zeamateis.usefulsaves.server.config;
 import net.minecraftforge.common.ForgeConfigSpec;
 import org.apache.commons.lang3.tuple.Pair;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.TimeZone;
 
 /**
@@ -24,6 +26,8 @@ public class UsefulSavesConfig {
         public static ForgeConfigSpec.ConfigValue<String> timeZone, backupsFolder, cronTaskObject;
         public static ForgeConfigSpec.BooleanValue saveIfServerEmpty, printMessage, enableTaskOnServerStart;
         public static ForgeConfigSpec.IntValue backupCompression;
+
+        public static ForgeConfigSpec.ConfigValue<List<String>> savedFileWhitelist;
 
         public Common(ForgeConfigSpec.Builder builder) {
             builder.push("common");
@@ -54,6 +58,10 @@ public class UsefulSavesConfig {
             enableTaskOnServerStart = builder
                     .comment("Enable the previous saved scheduled task on server start ?", "Ensure \"cronTask\" is not empty or null")
                     .define("enableTaskOnServerStart", true);
+
+            savedFileWhitelist = builder
+                    .comment("Define a list of files or folder to save on saving process", "Use absolute path !")
+                    .define("savedFileWhitelist", new ArrayList<String>());
 
             builder.pop();
         }
