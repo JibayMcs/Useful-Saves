@@ -15,7 +15,7 @@ apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
 apply plugin: "com.github.johnrengelman.shadow"
 
-version = '0.0.5'
+version = '0.0.7'
 group = 'fr.zeamateis.usefulsaves'
 archivesBaseName = 'usefulsaves'
 
@@ -114,6 +114,7 @@ shadowJar {
 task zippingLang(type: Zip) {
     from sourceSets.main.resources
     exclude 'META-INF'
+    exclude("pack.mcmeta")
     archiveName 'useful-saves-lang.zip'
     destinationDir(file("$buildDir/libs/"))
 }
