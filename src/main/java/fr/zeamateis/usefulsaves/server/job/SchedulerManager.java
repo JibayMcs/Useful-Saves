@@ -123,6 +123,16 @@ public class SchedulerManager {
             saveJob.getJobDataMap().put("deleteExisting", false);
 
             List<Path> paths = UsefulSavesConfig.Common.savedFileWhitelist.get().stream().map(Paths::get).collect(Collectors.toList());
+            //Add default world to whitelist
+            server.getWorlds().forEach(serverWorld -> {
+                if (paths.stream().noneMatch(o -> o.equals(serverWorld.getSaveHandler().getWorldDirectory().toPath())))
+                    paths.add(serverWorld.getSaveHandler().getWorldDirectory().toPath());
+                if (UsefulSavesConfig.Common.savedFileWhitelist.get().stream().noneMatch(o -> o.equals(serverWorld.getSaveHandler().getWorldDirectory().toPath().toString()))) {
+                    UsefulSavesConfig.Common.savedFileWhitelist.get().add(serverWorld.getSaveHandler().getWorldDirectory().toPath().toString());
+                    UsefulSavesConfig.Common.savedFileWhitelist.save();
+                }
+            });
+            //Check emptyness
             if (!paths.isEmpty()) {
                 saveJob.getJobDataMap().putIfAbsent("sourceWhitelist", paths);
             }

@@ -16,9 +16,12 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.*;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -72,13 +75,12 @@ public class SaveJob implements Job {
                     }
                 } else {
                     //Create zipped file
-                    Date date = new Date(server.getServerTime());
-                    DateFormat formatter = new SimpleDateFormat("HH-mm-ss-SSS");
+                    LocalDateTime date = LocalDateTime.now();
+                    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH-mm-ss-SSS");
                     server.getWorlds().forEach(serverWorld -> {
                         Path outputCompressedSave = Paths.get(UsefulSaves.getInstance().getBackupFolder().getPath(), String.format("%s-%s.zip", server.getFolderName().replaceAll("[^\\dA-Za-z ]", "").replaceAll("\\s+", "-"), formatter.format(date)));
                         this.zipUtils.setOutputSavePath(outputCompressedSave);
-                        this.zipUtils.getSourceWhitelist().add(serverWorld.getSaveHandler().getWorldDirectory().toPath());
-                        this.zipUtils.getSourceWhitelist().forEach(path -> System.out.println(path.toString()));
+                        this.zipUtils.getSourceWhitelist().forEach(path -> UsefulSaves.getLogger().debug("Zipping: " + path.toString()));
                         try {
                             this.zipUtils.createSave();
                             MessageUtils.printMessageForAllPlayers(server, new TranslationTextComponent("usefulsaves.message.save.savingSuccess", outputCompressedSave.getFileName()));
@@ -229,12 +231,12 @@ public class SaveJob implements Job {
     @Override
     public void execute(JobExecutionContext context) throws JobExecutionException {
         JobDataMap jobDataMap = context.getJobDetail().getJobDataMap();
-
         MinecraftServer server = (MinecraftServer) jobDataMap.get("server");
         CommandSource commandSource = (CommandSource) jobDataMap.get("commandSource");
         boolean isFlushed = jobDataMap.getBoolean("flush");
         boolean deleteIfExist = jobDataMap.getBoolean("deleteExisting");
         List<Path> sourceWhitelist = (List<Path>) jobDataMap.get("sourceWhitelist");
+
         this.setup(server, commandSource, isFlushed, deleteIfExist, sourceWhitelist);
         this.processSave();
     }
