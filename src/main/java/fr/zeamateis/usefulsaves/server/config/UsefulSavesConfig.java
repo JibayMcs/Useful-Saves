@@ -25,7 +25,7 @@ public class UsefulSavesConfig {
 
         public static ForgeConfigSpec.ConfigValue<String> timeZone, backupsFolder, cronTaskObject;
         public static ForgeConfigSpec.BooleanValue saveIfServerEmpty, printMessage, enableTaskOnServerStart, deleteOldOnMaximumReach;
-        public static ForgeConfigSpec.IntValue backupCompression, maximumSavedBackups;
+        public static ForgeConfigSpec.IntValue /*backupCompression,*/ maximumSavedBackups;
 
         public static ForgeConfigSpec.ConfigValue<List<String>> savedFileWhitelist;
 
@@ -52,8 +52,8 @@ public class UsefulSavesConfig {
                     .comment("Print Useful Saves messages in chat ?")
                     .define("printMessage", true);
 
-            backupCompression = builder.comment("Define compression level for backups archive files")
-                    .defineInRange("backupCompression", -1, -1, 9);
+            /*backupCompression = builder.comment("Define compression level for backups archive files")
+                    .defineInRange("backupCompression", -1, -1, 9);*/
 
             enableTaskOnServerStart = builder
                     .comment("Enable the previous saved scheduled task on server start ?", "Ensure \"cronTask\" is not empty or null")

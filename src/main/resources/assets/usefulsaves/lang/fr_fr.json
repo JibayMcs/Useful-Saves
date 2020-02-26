@@ -18,6 +18,11 @@
   "usefulsaves.message.config.enableTaskOnServerStart": "[§9§oUseful Saves§r] - Lancer les tâches au lancement du serveur: §a§l%s§r",
   "usefulsaves.message.config.compresionLevel": "[§9§oUseful Saves§r] - Niveau de compression de la sauvegarde: §a§l%s§r",
   "usefulsaves.message.config.backupFolder": "[§9§oUseful Saves§r] - Chemin d'accès aux sauvegardes: §a§l%s§r",
+  "usefulsaves.message.config.maximumSavedBackups": "[§9§oUseful Saves§r] - Nombre de sauvegardes maximum: §a§l%s§r",
+  "usefulsaves.message.config.maximumSavedBackups.unlimited": "Illimitées",
+  "usefulsaves.message.config.timeZone": "[§9§oUseful Saves§r] - TimeZone du monde: §a§l%s§r",
+  "usefulsaves.message.config.saveIfServerEmpty": "[§9§oUseful Saves§r] - Activer les sauvegarde si le serveur est vide: §a§l%s§r",
+  "usefulsaves.message.config.deleteOldOnMaximumReach": "[§9§oUseful Saves§r] - Supprimer les plus vieilles sauvegardes si le maximum est atteint: §a§l%s§r",
   "usefulsaves.message.maximumBackup": "[§9§oUseful Saves§r] - Sauvegardes maximales atteintes, tâche planifiée stoppée",
   "usefulsaves.message.cronhelp.unableToReachURL": "[§a§oCrontab Helper§r] - Impossible d'atteindre \"https://cronexpressiondescriptor.azurewebsites.net/api/descriptor\", vérifiez votre connexion internet.",
   "usefulsaves.message.cronhelp.result": "[§a§oCrontab Helper§r] - %s"

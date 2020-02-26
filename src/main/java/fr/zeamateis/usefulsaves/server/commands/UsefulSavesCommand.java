@@ -179,8 +179,9 @@ public class UsefulSavesCommand {
                                         })
                                 )
                         )
+                        //TODO enable compression
                         //Define zip compression level
-                        .then(Commands.literal("compression")
+                        /*.then(Commands.literal("compression")
                                 .then(Commands.argument("compresionLevel", IntegerArgumentType.integer(-1, 9))
                                         .executes(context -> {
                                                     UsefulSavesConfig.Common.backupCompression.set(IntegerArgumentType.getInteger(context, "compresionLevel"));
@@ -190,7 +191,7 @@ public class UsefulSavesCommand {
                                                 }
                                         )
                                 )
-                        )
+                        )*/
                         //Define the backup folder
                         .then(Commands.literal("backupFolder")
                                 .then(Commands.argument("folder", StringArgumentType.string())
@@ -198,6 +199,54 @@ public class UsefulSavesCommand {
                                             UsefulSavesConfig.Common.backupsFolder.set(StringArgumentType.getString(context, "folder"));
                                             UsefulSavesConfig.Common.backupsFolder.save();
                                             context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.config.backupFolder", StringArgumentType.getString(context, "folder")), false);
+                                            return 1;
+                                        })
+                                )
+                        )
+                        //Define maximum saves in backup folder
+                        .then(Commands.literal("maximum-backups")
+                                .then(Commands.argument("max", IntegerArgumentType.integer(-1, Integer.MAX_VALUE))
+                                        .executes(context -> {
+                                            UsefulSavesConfig.Common.maximumSavedBackups.set(IntegerArgumentType.getInteger(context, "max"));
+                                            UsefulSavesConfig.Common.maximumSavedBackups.save();
+                                            context.getSource().sendFeedback(
+                                                    new TranslationTextComponent("usefulsaves.message.config.maximumSavedBackups",
+                                                            IntegerArgumentType.getInteger(context, "max") == -1 ?
+                                                                    new TranslationTextComponent("usefulsaves.message.config.maximumSavedBackups.unlimited") :
+                                                                    IntegerArgumentType.getInteger(context, "max")), false);
+                                            return 1;
+                                        })
+                                )
+                        )
+                        //Define TimeZone
+                        .then(Commands.literal("timeZone")
+                                .then(Commands.argument("id", TimeZoneArgumentType.timeZone())
+                                        .executes(context -> {
+                                            UsefulSavesConfig.Common.timeZone.set(TimeZoneArgumentType.getTimeZone(context, "id").getID());
+                                            UsefulSavesConfig.Common.timeZone.save();
+                                            context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.config.timeZone", TimeZoneArgumentType.getTimeZone(context, "id").getID()), false);
+                                            return 1;
+                                        })
+                                )
+                        )
+                        //Save or not if server is empty
+                        .then(Commands.literal("saveIfServerEmpty")
+                                .then(Commands.argument("save", BoolArgumentType.bool())
+                                        .executes(context -> {
+                                            UsefulSavesConfig.Common.saveIfServerEmpty.set(BoolArgumentType.getBool(context, "save"));
+                                            UsefulSavesConfig.Common.saveIfServerEmpty.save();
+                                            context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.config.saveIfServerEmpty", BoolArgumentType.getBool(context, "save")), false);
+                                            return 1;
+                                        })
+                                )
+                        )
+                        //Define if old backups are deleted if maximum files reach
+                        .then(Commands.literal("deleteOldOnMaximumReach")
+                                .then(Commands.argument("delete", BoolArgumentType.bool())
+                                        .executes(context -> {
+                                            UsefulSavesConfig.Common.deleteOldOnMaximumReach.set(BoolArgumentType.getBool(context, "delete"));
+                                            UsefulSavesConfig.Common.deleteOldOnMaximumReach.save();
+                                            context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.config.deleteOldOnMaximumReach", BoolArgumentType.getBool(context, "delete")), false);
                                             return 1;
                                         })
                                 )

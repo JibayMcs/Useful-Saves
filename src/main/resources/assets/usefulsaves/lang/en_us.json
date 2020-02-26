@@ -18,6 +18,11 @@
   "usefulsaves.message.config.enableTaskOnServerStart": "[§9§oUseful Saves§r] - Starting task on server start: §a§l%s§r",
   "usefulsaves.message.config.compresionLevel": "[§9§oUseful Saves§r] - Compression level of backups file: §a§l%s§r",
   "usefulsaves.message.config.backupFolder": "[§9§oUseful Saves§r] - Backup folder path: §a§l%s§r",
+  "usefulsaves.message.config.maximumSavedBackups": "[§9§oUseful Saves§r] - Maximum backup file: §a§l%s§r",
+  "usefulsaves.message.config.maximumSavedBackups.unlimited": "Unlimited",
+  "usefulsaves.message.config.timeZone": "[§9§oUseful Saves§r] - Server World TimeZone: §a§l%s§r",
+  "usefulsaves.message.config.saveIfServerEmpty": "[§9§oUseful Saves§r] - Enable saves if server has no players: §a§l%s§r",
+  "usefulsaves.message.config.deleteOldOnMaximumReach": "[§9§oUseful Saves§r] - Delete oldest save if maximum backups reached: §a§l%s§r",
   "usefulsaves.message.maximumBackup": "[§9§oUseful Saves§r] - Maximum backups reach in backup folder, task stopped.",
   "usefulsaves.message.cronhelp.unableToReachURL": "[§a§oCrontab Helper§r] - Unable to reach \"https://cronexpressiondescriptor.azurewebsites.net/api/descriptor\", check internet connexion",
   "usefulsaves.message.cronhelp.result": "[§a§oCrontab Helper§r] - %s"
