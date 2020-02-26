@@ -2,6 +2,12 @@
   <img width="256" height="256" src="https://i.imgur.com/Xz7NQwI.png">
 </p>
 
+<p align="center">
+	<a href="https://www.curseforge.com/minecraft/mc-mods/useful-saves">
+  		<img width="126" height="20" src="http://cf.way2muchnoise.eu/title/364598.svg">
+	</a>
+</p>
+
 ## Scheduler backing up to never lose anything !
 ### Useful Saves, a simple, commands only, mod to create scheduled backup of your world or extras files
 
