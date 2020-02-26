@@ -54,15 +54,12 @@ Useful Saves’s command prefix are always /useful-saves
 ### - Deletions commands
 
 `/useful-saves clear-backups-folder`
-
 Clear save files from backup folder
 
 `/useful-saves delete`
-
 Delete a specified save file from backup folder
 
 `/useful-saves confirm [yes/no]`
-
 Confirm previous deletion
 
 ___
@@ -70,21 +67,17 @@ ___
 ### - Scheduling commands
  
 `/useful-saves schedule stop/pause/resume`
-
 To stop, pause or resume the current running task
 
 `/useful-saves schedule cron [<expression>]`
-
 To schedule backup task, based on crontab expression
 
 #### Optional parameters
  
 `/useful-saves schedule cron [<expression>] [<TimeZone>]`
-
 To schedule backup task, based on crontab expression, but by defining a time zone if the server clock/locale differ from user contry
 
 `/useful-saves schedule cron [<expression>] [flush]`
-
 flush backup file. (force writting data)
 
 ___
@@ -92,15 +85,12 @@ ___
 ## - Utilitary commands
 
 `/useful-saves schedule restart`
-
 Restart the scheduler system in case of any crash or shutdown
 
 `/useful-saves save-now`
-
 Launch an instant backup
 
 `/useful-saves info`
-
 Informations of the actual state of the scheduler
 
 ___
@@ -108,31 +98,24 @@ ___
 ## - Config commands
 
 `/useful-saves config backupFolder`
-
 Define a folder to store saves
 
 `/useful-saves config deleteOldOnMaximumReach`
-
 Delete oldest save if maximum backups reached
 
 `/useful-saves config enableTaskOnServerStart`
-
 Starting scheduled task on server start
 
 `/useful-saves config maximum-backups`
-
 Set the number of backups the server keeps
 
 `/useful-saves config printChatMessage`
-
 Display or not infos to all players
 
 `/useful-saves config saveIfServerEmpty`
-
 Enable saves if server has no players connected
 
 `/useful-saves config timeZone`
-
 Define a time zone if the server clock/locale differ from user contry
 
 # Crontab Helper command
@@ -142,11 +125,9 @@ Useful Saves are packaged with an human interpreter for cron expression
 Thanks to [**cronexpressiondescriptor.azurewebsites.net**](https://cronexpressiondescriptor.azurewebsites.net/)
 
 `/cron [<expression>]`
-
 Get a human readable version of the cron expression
 
 `/cron [<expression>] [<locale>]`
-
 Get a human readable version of the cron expression, but in user language
 
 **Example:** `/cron "*** * * ? * ***" fr-FR`
@@ -159,6 +140,7 @@ Get a human readable version of the cron expression, but in user language
 If you don't want Useful Save installed on the client, but only on the server it's possible !
 But bring translations files for printted messages in tchat !
 Download the translations pack of "Useful Save" !
+***resources/assets/usefulsaves/lang***
 
 # Useful links
 
