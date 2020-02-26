@@ -24,7 +24,7 @@ public class UsefulSavesConfig {
     public static class Common {
 
         public static ForgeConfigSpec.ConfigValue<String> timeZone, backupsFolder, cronTaskObject;
-        public static ForgeConfigSpec.BooleanValue saveIfServerEmpty, printMessage, enableTaskOnServerStart;
+        public static ForgeConfigSpec.BooleanValue saveIfServerEmpty, printMessage, enableTaskOnServerStart, deleteOldOnMaximumReach;
         public static ForgeConfigSpec.IntValue backupCompression, maximumSavedBackups;
 
         public static ForgeConfigSpec.ConfigValue<List<String>> savedFileWhitelist;
@@ -66,6 +66,11 @@ public class UsefulSavesConfig {
             maximumSavedBackups = builder
                     .comment("Define maximum created backups", "\"-1\" = unlimited saves")
                     .defineInRange("maximumSavedBackups", -1, -1, Integer.MAX_VALUE);
+
+            deleteOldOnMaximumReach = builder
+                    .comment("Defined to delete oldest backups if maximum saves are reach",
+                            "Used if \"maximumSavedBackups\" are defined")
+                    .define("deleteOldOnMaximumReach", false);
 
             builder.pop();
         }

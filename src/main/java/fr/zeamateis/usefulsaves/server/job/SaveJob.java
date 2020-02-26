@@ -18,10 +18,7 @@ import java.net.URI;
 import java.nio.file.*;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -93,11 +90,14 @@ public class SaveJob implements Job {
                         }
                     });
                 }
+            } else if (UsefulSavesConfig.Common.deleteOldOnMaximumReach.get()) {
+                this.tryDeleteOldestBackup();
+                this.processSave();
             } else {
                 UsefulSaves.getInstance().getSchedulerManager().unscheduleSaveJob();
                 UsefulSaves.getInstance().getSchedulerManager().setStatus(SchedulerManager.SchedulerStatus.MAXIMUM_BACKUP_REACH);
-                if (commandSource != null)
-                    commandSource.sendFeedback(new TranslationTextComponent("usefulsaves.message.maximumBackup"), false);
+                if (this.commandSource != null)
+                    this.commandSource.sendFeedback(new TranslationTextComponent("usefulsaves.message.maximumBackup"), false);
                 MessageUtils.printMessageInConsole("Maximum backups reach in backup folder");
             }
         }
@@ -123,6 +123,22 @@ public class SaveJob implements Job {
             return backupList.size();
         } catch (IOException ignored) {
             return -1;
+        }
+    }
+
+    private void tryDeleteOldestBackup() {
+        try (Stream<Path> walk = Files.walk(Paths.get(UsefulSaves.getInstance().getBackupFolder().getPath()))) {
+            Comparator<? super Path> lastModifiedComparator =
+                    (p1, p2) -> Long.compare(p1.toFile().lastModified(), p2.toFile().lastModified());
+            walk.filter(Files::isRegularFile).sorted(lastModifiedComparator).limit(1).map(Path::toFile)
+                    .forEach(file -> {
+                        try {
+                            FileUtils.forceDelete(file);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    });
+        } catch (IOException ignored) {
         }
     }
 
