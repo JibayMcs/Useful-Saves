@@ -15,7 +15,7 @@ apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
 apply plugin: "com.github.johnrengelman.shadow"
 
-version = '0.0.3'
+version = '0.0.9'
 group = 'fr.zeamateis.usefulsaves'
 archivesBaseName = 'usefulsaves'
 
@@ -64,23 +64,9 @@ minecraft {
 }
 
 dependencies {
-    minecraft 'net.minecraftforge:forge:1.15.2-31.1.0'
+    minecraft 'net.minecraftforge:forge:1.15.2-31.1.12'
     // https://mvnrepository.com/artifact/org.quartz-scheduler/quartz
     shadow group: 'org.quartz-scheduler', name: 'quartz', version: '2.3.2'
-}
-
-jar {
-    manifest {
-        attributes([
-                "Specification-Title"     : "usefulsaves",
-                "Specification-Vendor"    : "zeamateis",
-                "Specification-Version"   : "1",
-                "Implementation-Title"    : project.name,
-                "Implementation-Version"  : "${version}",
-                "Implementation-Vendor"   : "zeamateis",
-                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        ])
-    }
 }
 
 def reobfFile = file("$buildDir/reobfJar/output.jar")
@@ -118,7 +104,19 @@ shadowJar {
                 'Build-OS'                : "${System.properties['os.name']} ${System.properties['os.arch']} ${System.properties['os.version']}"
         ])
     }
+    exclude("tests/**")
     classifier ''
+}
+
+/**
+ * Export langs files for resources pack makers, if client doesn't have mod installed
+ * */
+task zippingLang(type: Zip) {
+    from sourceSets.main.resources
+    exclude 'META-INF'
+    exclude("pack.mcmeta")
+    archiveName 'useful-saves-translations-pack.zip'
+    destinationDir(file("$buildDir/libs/"))
 }
 
 reobf {
@@ -129,4 +127,4 @@ artifacts {
     archives shadowJar
 }
 
-tasks.build.dependsOn reobfShadowJar
+tasks.build.dependsOn reobfShadowJar, zippingLang
