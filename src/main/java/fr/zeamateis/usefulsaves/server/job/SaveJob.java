@@ -77,20 +77,18 @@ public class SaveJob implements Job {
                     //Create zipped file
                     LocalDateTime date = LocalDateTime.now();
                     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH-mm-ss-SSS");
-                    server.getWorlds().forEach(serverWorld -> {
-                        Path outputCompressedSave = Paths.get(UsefulSaves.getInstance().getBackupFolder().getPath(), String.format("%s-%s.zip", server.getFolderName().replaceAll("[^\\dA-Za-z ]", "").replaceAll("\\s+", "-"), formatter.format(date)));
-                        this.zipUtils.setOutputSavePath(outputCompressedSave);
-                        this.zipUtils.getSourceWhitelist().forEach(path -> UsefulSaves.getLogger().debug("Zipping: " + path.toString()));
-                        try {
-                            this.zipUtils.createSave();
-                            MessageUtils.printMessageForAllPlayers(server, new TranslationTextComponent("usefulsaves.message.save.savingSuccess", outputCompressedSave.getFileName()));
-                            MessageUtils.printMessageForAllPlayers(server, new TranslationTextComponent("usefulsaves.message.save.backupSize", FileUtils.byteCountToDisplaySize(outputCompressedSave.toFile().length())));
-                            //Console print
-                            MessageUtils.printMessageInConsole("Success saving for %s, %s file size", outputCompressedSave.getFileName(), FileUtils.byteCountToDisplaySize(outputCompressedSave.toFile().length()));
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    });
+                    Path outputCompressedSave = Paths.get(UsefulSaves.getInstance().getBackupFolder().getPath(), String.format("%s-%s.zip", server.getFolderName().replaceAll("[^\\dA-Za-z ]", "").replaceAll("\\s+", "-"), formatter.format(date)));
+                    this.zipUtils.setOutputSavePath(outputCompressedSave);
+                    this.zipUtils.getSourceWhitelist().forEach(path -> UsefulSaves.getLogger().debug("Zipping: " + path.toString()));
+                    try {
+                        this.zipUtils.createSave();
+                        MessageUtils.printMessageForAllPlayers(server, new TranslationTextComponent("usefulsaves.message.save.savingSuccess", outputCompressedSave.getFileName()));
+                        MessageUtils.printMessageForAllPlayers(server, new TranslationTextComponent("usefulsaves.message.save.backupSize", FileUtils.byteCountToDisplaySize(outputCompressedSave.toFile().length())));
+                        //Console print
+                        MessageUtils.printMessageInConsole("Success saving for %s, %s file size", outputCompressedSave.getFileName(), FileUtils.byteCountToDisplaySize(outputCompressedSave.toFile().length()));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             } else if (UsefulSavesConfig.Common.deleteOldOnMaximumReach.get()) {
                 this.tryDeleteOldestBackup();
