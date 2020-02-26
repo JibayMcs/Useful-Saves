@@ -92,6 +92,7 @@ public class UsefulSavesCommand {
                                                 .then(Commands.argument("flush", BoolArgumentType.bool())
                                                         .executes(context -> manager.scheduleCronSave(
                                                                 context.getSource().getServer(),
+                                                                context.getSource(),
                                                                 CronArgumentType.getCron(context, "cron").getCronExpression(),
                                                                 TimeZoneArgumentType.getTimeZone(context, "timeZone"),
                                                                 UsefulSaves.getInstance().taskObject.get().isFlush()
@@ -99,6 +100,7 @@ public class UsefulSavesCommand {
                                                 //No flush parameter
                                                 .executes(context -> manager.scheduleCronSave(
                                                         context.getSource().getServer(),
+                                                        context.getSource(),
                                                         CronArgumentType.getCron(context, "cron").getCronExpression(),
                                                         TimeZoneArgumentType.getTimeZone(context, "timeZone"),
                                                         false
@@ -109,6 +111,7 @@ public class UsefulSavesCommand {
                                         .then(Commands.argument("flush", BoolArgumentType.bool())
                                                 .executes(context -> manager.scheduleCronSave(
                                                         context.getSource().getServer(),
+                                                        context.getSource(),
                                                         CronArgumentType.getCron(context, "cron").getCronExpression(),
                                                         TimeZone.getTimeZone(UsefulSavesConfig.Common.timeZone.get()),
                                                         UsefulSaves.getInstance().taskObject.get().isFlush()
@@ -116,6 +119,7 @@ public class UsefulSavesCommand {
                                         //No flush parameter
                                         .executes(context -> manager.scheduleCronSave(
                                                 context.getSource().getServer(),
+                                                context.getSource(),
                                                 CronArgumentType.getCron(context, "cron").getCronExpression(),
                                                 TimeZone.getTimeZone(UsefulSavesConfig.Common.timeZone.get()),
                                                 false
@@ -136,9 +140,9 @@ public class UsefulSavesCommand {
                 .then(Commands.literal("save-now")
                         //With flush parameter
                         .then(Commands.argument("flush", BoolArgumentType.bool())
-                                .executes(context -> processSave(context.getSource().getServer(), BoolArgumentType.getBool(context, "flush"))))
+                                .executes(context -> processSave(context.getSource().getServer(), context.getSource(), BoolArgumentType.getBool(context, "flush"), manager)))
                         //No flush parameter
-                        .executes(context -> processSave(context.getSource().getServer(), false))
+                        .executes(context -> processSave(context.getSource().getServer(), context.getSource(), false, manager))
                 )
                 //Display informations
                 .then(Commands.literal("info")
@@ -239,11 +243,13 @@ public class UsefulSavesCommand {
     /**
      * Process simple unscheduled save
      */
-    private static int processSave(MinecraftServer server, boolean flush) {
+    private static int processSave(MinecraftServer server, CommandSource commandSource, boolean flush, SchedulerManager manager) {
         SaveJob saveJob = new SaveJob();
         List<Path> paths = UsefulSavesConfig.Common.savedFileWhitelist.get().stream().map(Paths::get).collect(Collectors.toList());
         if (!paths.isEmpty()) {
-            saveJob.setup(server, flush, false, paths);
+            saveJob.setup(server, commandSource, flush, false, paths);
+            if (!manager.getSchedulerStatus().equals(SchedulerManager.SchedulerStatus.RUNNING))
+                manager.setStatus(SchedulerManager.SchedulerStatus.RUNNING_NO_TASKS);
             saveJob.processSave();
         }
         return 1;

@@ -4,6 +4,7 @@ import fr.zeamateis.usefulsaves.UsefulSaves;
 import fr.zeamateis.usefulsaves.server.config.UsefulSavesConfig;
 import fr.zeamateis.usefulsaves.server.json.CronObject;
 import fr.zeamateis.usefulsaves.server.json.ScheduleObject;
+import net.minecraft.command.CommandSource;
 import net.minecraft.server.MinecraftServer;
 import org.quartz.*;
 import org.quartz.impl.StdSchedulerFactory;
@@ -86,7 +87,7 @@ public class SchedulerManager {
         return false;
     }
 
-    public int scheduleCronSave(MinecraftServer server, String cronTask, TimeZone timeZone, boolean flush) {
+    public int scheduleCronSave(MinecraftServer server, CommandSource commandSource, String cronTask, TimeZone timeZone, boolean flush) {
         try {
             UsefulSaves.getInstance().taskObject.set(new ScheduleObject(new CronObject(cronTask), timeZone, flush));
             updateTaskInConfig();
@@ -115,6 +116,7 @@ public class SchedulerManager {
             triggers.add(cronTrigger);
 
             saveJob.getJobDataMap().put("server", server);
+            saveJob.getJobDataMap().put("commandSource", commandSource);
             saveJob.getJobDataMap().put("flush", flush);
             //TODO Define in config
             //But pretty useless to define now for external user
@@ -165,6 +167,7 @@ public class SchedulerManager {
         RUNNING_NO_TASKS,
         RUNNING,
         PAUSED,
+        MAXIMUM_BACKUP_REACH,
         SHUTDOWN,
         UNKNOWN
     }

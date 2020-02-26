@@ -92,6 +92,10 @@ public class UsefulSaves {
         ArgumentTypes.register("timezone", TimeZoneArgumentType.class, new ArgumentSerializer<>(TimeZoneArgumentType::timeZone));
     }
 
+    public SchedulerManager getSchedulerManager() {
+        return schedulerManager;
+    }
+
     public File getBackupFolder() {
         return backupFolder;
     }
@@ -138,7 +142,7 @@ public class UsefulSaves {
                                 //Check if cron object is not null
                                 if (taskObject.get().getCronObject() != null) {
                                     //loading from file
-                                    schedulerManager.scheduleCronSave(event.getServer(), taskObject.get().getCronObject().getCron(), TimeZone.getTimeZone(taskObject.get().getTimeZone()), taskObject.get().isFlush());
+                                    schedulerManager.scheduleCronSave(event.getServer(), event.getServer().getCommandSource(), taskObject.get().getCronObject().getCron(), TimeZone.getTimeZone(taskObject.get().getTimeZone()), taskObject.get().isFlush());
                                 } else getLogger().info("cronObject null or empty, ignoring starting task...");
                             else getLogger().info("Json Task empty, ignoring starting task...");
                         } finally {

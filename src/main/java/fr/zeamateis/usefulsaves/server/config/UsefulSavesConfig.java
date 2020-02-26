@@ -25,7 +25,7 @@ public class UsefulSavesConfig {
 
         public static ForgeConfigSpec.ConfigValue<String> timeZone, backupsFolder, cronTaskObject;
         public static ForgeConfigSpec.BooleanValue saveIfServerEmpty, printMessage, enableTaskOnServerStart;
-        public static ForgeConfigSpec.IntValue backupCompression;
+        public static ForgeConfigSpec.IntValue backupCompression, maximumSavedBackups;
 
         public static ForgeConfigSpec.ConfigValue<List<String>> savedFileWhitelist;
 
@@ -62,6 +62,10 @@ public class UsefulSavesConfig {
             savedFileWhitelist = builder
                     .comment("Define a list of files or folder to save on saving process", "Use absolute path !")
                     .define("savedFileWhitelist", new ArrayList<String>());
+
+            maximumSavedBackups = builder
+                    .comment("Define maximum created backups", "\"-1\" = unlimited saves")
+                    .defineInRange("maximumSavedBackups", -1, -1, Integer.MAX_VALUE);
 
             builder.pop();
         }

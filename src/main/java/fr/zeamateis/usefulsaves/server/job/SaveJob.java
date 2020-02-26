@@ -6,6 +6,7 @@ import fr.zeamateis.usefulsaves.UsefulSaves;
 import fr.zeamateis.usefulsaves.server.config.UsefulSavesConfig;
 import fr.zeamateis.usefulsaves.util.MessageUtils;
 import fr.zeamateis.usefulsaves.util.ZipUtils;
+import net.minecraft.command.CommandSource;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.TranslationTextComponent;
 import org.apache.commons.io.FileUtils;
@@ -21,6 +22,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 
@@ -36,6 +38,7 @@ public class SaveJob implements Job {
     private static final SimpleCommandExceptionType FAILED_EXCEPTION = new SimpleCommandExceptionType(new TranslationTextComponent("commands.save.failed"));
 
     private MinecraftServer server;
+    private CommandSource commandSource;
     private boolean flush;
     private ZipUtils zipUtils = new ZipUtils();
 
@@ -47,8 +50,9 @@ public class SaveJob implements Job {
      * @param deleteExisting  Delete existing save ? (on duplicated names)
      * @param sourceWhitelist Whitelist of folders and file to add in save archive
      */
-    public void setup(MinecraftServer server, boolean flush, boolean deleteExisting, List<Path> sourceWhitelist) {
+    public void setup(MinecraftServer server, CommandSource commandSource, boolean flush, boolean deleteExisting, List<Path> sourceWhitelist) {
         this.server = server;
+        this.commandSource = commandSource;
         this.flush = flush;
         this.zipUtils.setDeleteExisting(deleteExisting);
         this.zipUtils.getSourceWhitelist().addAll(sourceWhitelist);
@@ -56,38 +60,69 @@ public class SaveJob implements Job {
 
     public void processSave() {
         if (saveIfServerEmpty()) {
-            MessageUtils.printMessageForAllPlayers(server, new TranslationTextComponent("usefulsaves.message.save.saving"));
-            //Console Print
-            MessageUtils.printMessageInConsole("Saving the game (this may take a moment!)");
+            if (canProcessSave()) {
+                MessageUtils.printMessageForAllPlayers(server, new TranslationTextComponent("usefulsaves.message.save.saving"));
+                //Console Print
+                MessageUtils.printMessageInConsole("Saving the game (this may take a moment!)");
 
-            server.getPlayerList().saveAllPlayerData();
-            boolean flag = server.save(true, flush, true);
+                server.getPlayerList().saveAllPlayerData();
+                boolean flag = server.save(true, flush, true);
 
-            if (!flag) {
-                try {
-                    throw FAILED_EXCEPTION.create();
-                } catch (CommandSyntaxException ignored) {
+                if (!flag) {
+                    try {
+                        throw FAILED_EXCEPTION.create();
+                    } catch (CommandSyntaxException ignored) {
+                    }
+                } else {
+                    //Create zipped file
+                    Date date = new Date(server.getServerTime());
+                    DateFormat formatter = new SimpleDateFormat("HH-mm-ss-SSS");
+                    server.getWorlds().forEach(serverWorld -> {
+                        Path outputCompressedSave = Paths.get(UsefulSaves.getInstance().getBackupFolder().getPath(), String.format("%s-%s.zip", server.getFolderName().replaceAll("[^\\dA-Za-z ]", "").replaceAll("\\s+", "-"), formatter.format(date)));
+                        this.zipUtils.setOutputSavePath(outputCompressedSave);
+                        this.zipUtils.getSourceWhitelist().add(serverWorld.getSaveHandler().getWorldDirectory().toPath());
+                        this.zipUtils.getSourceWhitelist().forEach(path -> System.out.println(path.toString()));
+                        try {
+                            this.zipUtils.createSave();
+                            MessageUtils.printMessageForAllPlayers(server, new TranslationTextComponent("usefulsaves.message.save.savingSuccess", outputCompressedSave.getFileName()));
+                            MessageUtils.printMessageForAllPlayers(server, new TranslationTextComponent("usefulsaves.message.save.backupSize", FileUtils.byteCountToDisplaySize(outputCompressedSave.toFile().length())));
+                            //Console print
+                            MessageUtils.printMessageInConsole("Success saving for %s, %s file size", outputCompressedSave.getFileName(), FileUtils.byteCountToDisplaySize(outputCompressedSave.toFile().length()));
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    });
                 }
             } else {
-                //Create zipped file
-                Date date = new Date(server.getServerTime());
-                DateFormat formatter = new SimpleDateFormat("HH-mm-ss-SSS");
-                server.getWorlds().forEach(serverWorld -> {
-                    Path outputCompressedSave = Paths.get(UsefulSaves.getInstance().getBackupFolder().getPath(), String.format("%s-%s.zip", server.getFolderName().replaceAll("[^\\dA-Za-z ]", "").replaceAll("\\s+", "-"), formatter.format(date)));
-                    this.zipUtils.setOutputSavePath(outputCompressedSave);
-                    this.zipUtils.getSourceWhitelist().add(serverWorld.getSaveHandler().getWorldDirectory().toPath());
-                    this.zipUtils.getSourceWhitelist().forEach(path -> System.out.println(path.toString()));
-                    try {
-                        this.zipUtils.createSave();
-                        MessageUtils.printMessageForAllPlayers(server, new TranslationTextComponent("usefulsaves.message.save.savingSuccess", outputCompressedSave.getFileName()));
-                        MessageUtils.printMessageForAllPlayers(server, new TranslationTextComponent("usefulsaves.message.save.backupSize", FileUtils.byteCountToDisplaySize(outputCompressedSave.toFile().length())));
-                        //Console print
-                        MessageUtils.printMessageInConsole("Success saving for %s, %s file size", outputCompressedSave.getFileName(), FileUtils.byteCountToDisplaySize(outputCompressedSave.toFile().length()));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                });
+                UsefulSaves.getInstance().getSchedulerManager().unscheduleSaveJob();
+                UsefulSaves.getInstance().getSchedulerManager().setStatus(SchedulerManager.SchedulerStatus.MAXIMUM_BACKUP_REACH);
+                if (commandSource != null)
+                    commandSource.sendFeedback(new TranslationTextComponent("usefulsaves.message.maximumBackup"), false);
+                MessageUtils.printMessageInConsole("Maximum backups reach in backup folder");
             }
+        }
+    }
+
+    /**
+     * Check maximum backups restriction
+     */
+    private boolean canProcessSave() {
+        if (UsefulSavesConfig.Common.maximumSavedBackups.get() == -1)
+            return true;
+        else {
+            return UsefulSavesConfig.Common.maximumSavedBackups.get() != -1 && countBackups() <= UsefulSavesConfig.Common.maximumSavedBackups.get();
+        }
+    }
+
+    private int countBackups() {
+        try (Stream<Path> walk = Files.walk(Paths.get(UsefulSaves.getInstance().getBackupFolder().getPath()))) {
+            List<String> backupList = walk
+                    .filter(Files::isRegularFile)
+                    .map(x -> x.getFileName().toString())
+                    .collect(Collectors.toList());
+            return backupList.size();
+        } catch (IOException ignored) {
+            return -1;
         }
     }
 
@@ -179,11 +214,12 @@ public class SaveJob implements Job {
     public void execute(JobExecutionContext context) throws JobExecutionException {
         JobDataMap jobDataMap = context.getJobDetail().getJobDataMap();
 
-        this.setup(
-                (MinecraftServer) jobDataMap.get("server"),
-                jobDataMap.getBoolean("flush"),
-                jobDataMap.getBoolean("deleteExisting"),
-                (List<Path>) jobDataMap.get("sourceWhitelist"));
+        MinecraftServer server = (MinecraftServer) jobDataMap.get("server");
+        CommandSource commandSource = (CommandSource) jobDataMap.get("commandSource");
+        boolean isFlushed = jobDataMap.getBoolean("flush");
+        boolean deleteIfExist = jobDataMap.getBoolean("deleteExisting");
+        List<Path> sourceWhitelist = (List<Path>) jobDataMap.get("sourceWhitelist");
+        this.setup(server, commandSource, isFlushed, deleteIfExist, sourceWhitelist);
         this.processSave();
     }
 
