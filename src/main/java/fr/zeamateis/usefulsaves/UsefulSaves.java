@@ -132,22 +132,23 @@ public class UsefulSaves {
                 }
 
                 //Auto-reload task from file
-                if (!UsefulSavesConfig.Common.cronTaskObject.get().isEmpty())
-                    if (UsefulSavesConfig.Common.enableTaskOnServerStart.get())
-                        try {
-                            getLogger().info("Loading startup tasks from file...");
-                            taskObject.set(instance.getGson().fromJson(UsefulSavesConfig.Common.cronTaskObject.get(), ScheduleObject.class));
+                if (schedulerManager.getScheduler() != null)
+                    if (!UsefulSavesConfig.Common.cronTaskObject.get().isEmpty())
+                        if (UsefulSavesConfig.Common.enableTaskOnServerStart.get())
+                            try {
+                                getLogger().info("Loading startup tasks from file...");
+                                taskObject.set(instance.getGson().fromJson(UsefulSavesConfig.Common.cronTaskObject.get(), ScheduleObject.class));
 
-                            if (taskObject.get() != null)
-                                //Check if cron object is not null
-                                if (taskObject.get().getCronObject() != null) {
-                                    //loading from file
-                                    schedulerManager.scheduleCronSave(event.getServer(), event.getServer().getCommandSource(), taskObject.get().getCronObject().getCron(), TimeZone.getTimeZone(taskObject.get().getTimeZone()), taskObject.get().isFlush());
-                                } else getLogger().info("cronObject null or empty, ignoring starting task...");
-                            else getLogger().info("Json Task empty, ignoring starting task...");
-                        } finally {
-                            getLogger().info("Loaded tasks from file finished.");
-                        }
+                                if (taskObject.get() != null)
+                                    //Check if cron object is not null
+                                    if (taskObject.get().getCronObject() != null) {
+                                        //loading from file
+                                        schedulerManager.scheduleCronSave(false, event.getServer(), event.getServer().getCommandSource(), taskObject.get().getCronObject().getCron(), TimeZone.getTimeZone(taskObject.get().getTimeZone()), taskObject.get().isFlush());
+                                    } else getLogger().info("cronObject null or empty, ignoring starting task...");
+                                else getLogger().info("Json Task empty, ignoring starting task...");
+                            } finally {
+                                getLogger().info("Loaded tasks from file finished.");
+                            }
             } catch (SchedulerException e) {
                 e.printStackTrace();
             }

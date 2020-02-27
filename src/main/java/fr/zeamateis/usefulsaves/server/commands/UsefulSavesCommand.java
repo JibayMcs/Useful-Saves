@@ -90,7 +90,7 @@ public class UsefulSavesCommand {
                                         .then(Commands.argument("timeZone", TimeZoneArgumentType.timeZone())
                                                 //With flush parameter
                                                 .then(Commands.argument("flush", BoolArgumentType.bool())
-                                                        .executes(context -> manager.scheduleCronSave(
+                                                        .executes(context -> manager.scheduleCronSave(true,
                                                                 context.getSource().getServer(),
                                                                 context.getSource(),
                                                                 CronArgumentType.getCron(context, "cron").getCronExpression(),
@@ -98,7 +98,7 @@ public class UsefulSavesCommand {
                                                                 UsefulSaves.getInstance().taskObject.get().isFlush()
                                                         )))
                                                 //No flush parameter
-                                                .executes(context -> manager.scheduleCronSave(
+                                                .executes(context -> manager.scheduleCronSave(true,
                                                         context.getSource().getServer(),
                                                         context.getSource(),
                                                         CronArgumentType.getCron(context, "cron").getCronExpression(),
@@ -109,7 +109,7 @@ public class UsefulSavesCommand {
                                         //Default TimeZone
                                         //With flush parameter
                                         .then(Commands.argument("flush", BoolArgumentType.bool())
-                                                .executes(context -> manager.scheduleCronSave(
+                                                .executes(context -> manager.scheduleCronSave(true,
                                                         context.getSource().getServer(),
                                                         context.getSource(),
                                                         CronArgumentType.getCron(context, "cron").getCronExpression(),
@@ -117,7 +117,7 @@ public class UsefulSavesCommand {
                                                         UsefulSaves.getInstance().taskObject.get().isFlush()
                                                 )))
                                         //No flush parameter
-                                        .executes(context -> manager.scheduleCronSave(
+                                        .executes(context -> manager.scheduleCronSave(true,
                                                 context.getSource().getServer(),
                                                 context.getSource(),
                                                 CronArgumentType.getCron(context, "cron").getCronExpression(),
@@ -146,10 +146,12 @@ public class UsefulSavesCommand {
                 )
                 //Display informations
                 .then(Commands.literal("info")
-                        //List backuped files
-                        .executes(UsefulSavesCommand::listBackup)
                         //Running task info
-                        .executes(context -> printInfo(context, manager))
+                        .executes(context -> {
+                            listBackup(context);
+                            printInfo(context, manager);
+                            return 1;
+                        })
                 )
                 // TODO
                 // Time left before next save
@@ -294,40 +296,12 @@ public class UsefulSavesCommand {
      */
     private static int processSave(MinecraftServer server, CommandSource commandSource, boolean flush, SchedulerManager manager) {
         SaveJob saveJob = new SaveJob();
-        List<Path> paths = UsefulSavesConfig.Common.savedFileWhitelist.get().stream().map(Paths::get).collect(Collectors.toList());
-        //Add default world to whitelist
-        server.getWorlds().forEach(serverWorld -> {
-            if (paths.stream().noneMatch(o -> o.equals(serverWorld.getSaveHandler().getWorldDirectory().toPath())))
-                paths.add(serverWorld.getSaveHandler().getWorldDirectory().toPath());
-            if (UsefulSavesConfig.Common.savedFileWhitelist.get().stream().noneMatch(o -> o.equals(serverWorld.getSaveHandler().getWorldDirectory().toPath().toString()))) {
-                UsefulSavesConfig.Common.savedFileWhitelist.get().add(serverWorld.getSaveHandler().getWorldDirectory().toPath().toString());
-                UsefulSavesConfig.Common.savedFileWhitelist.save();
-            }
-        });
         //Check emptyness and process save
-        if (!paths.isEmpty()) {
-            saveJob.setup(server, commandSource, flush, false, paths);
+        if (!manager.filesToSave(server).isEmpty()) {
+            saveJob.setup(server, commandSource, flush, false, manager.filesToSave(server));
             if (!manager.getSchedulerStatus().equals(SchedulerManager.SchedulerStatus.RUNNING))
                 manager.setStatus(SchedulerManager.SchedulerStatus.RUNNING_NO_TASKS);
             saveJob.processSave();
-        }
-        return 1;
-    }
-
-    /**
-     * Count how many files are in backup folder
-     */
-    private static int listBackup(CommandContext<CommandSource> context) {
-        try (Stream<Path> walk = Files.walk(Paths.get(UsefulSaves.getInstance().getBackupFolder().getPath()))) {
-            List<String> backupList = walk
-                    .filter(Files::isRegularFile)
-                    .map(x -> x.getFileName().toString())
-                    .collect(Collectors.toList());
-            if (!backupList.isEmpty())
-                context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.backupCount", backupList.size()), false);
-            else
-                context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.backupCount.empty", backupList.size()), false);
-        } catch (IOException ignored) {
         }
         return 1;
     }
@@ -357,20 +331,34 @@ public class UsefulSavesCommand {
         return 1;
     }
 
-    public static int printInfo(CommandContext<CommandSource> context, SchedulerManager manager) {
+    /**
+     * Count how many files are in backup folder
+     */
+    private static void listBackup(CommandContext<CommandSource> context) {
+        try (Stream<Path> walk = Files.walk(Paths.get(UsefulSaves.getInstance().getBackupFolder().getPath()))) {
+            List<String> backupList = walk
+                    .filter(Files::isRegularFile)
+                    .map(x -> x.getFileName().toString())
+                    .collect(Collectors.toList());
+            if (!backupList.isEmpty())
+                context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.backupCount", backupList.size()), false);
+            else
+                context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.backupCount.empty", backupList.size()), false);
+        } catch (IOException ignored) {
+        }
+    }
+
+    public static void printInfo(CommandContext<CommandSource> context, SchedulerManager manager) {
         if (manager.getScheduler() != null) {
             List<TriggerKey> triggerKeys = manager.getTriggers().stream().filter(Objects::nonNull).map(Trigger::getKey).collect(Collectors.toList());
             if (!triggerKeys.isEmpty()) {
                 try {
                     context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.scheduled.runningSince", manager.getScheduler().getMetaData().getRunningSince(), manager.getSchedulerStatus()), false);
-                    return 1;
                 } catch (SchedulerException e) {
-                    return 0;
                 }
             }
             context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.scheduled.status", manager.getSchedulerStatus()), false);
         }
-        return 1;
     }
 
 }

@@ -66,7 +66,7 @@ public class SaveJob implements Job {
                 MessageUtils.printMessageInConsole("Saving the game (this may take a moment!)");
 
                 server.getPlayerList().saveAllPlayerData();
-                boolean flag = server.save(true, flush, true);
+                boolean flag = server.save(true, false, true);
 
                 if (!flag) {
                     try {
