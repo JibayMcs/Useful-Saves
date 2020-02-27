@@ -15,7 +15,7 @@ apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
 apply plugin: "com.github.johnrengelman.shadow"
 
-version = '0.1.0'
+version = '0.1.1-1.15.2-31.1.12'
 group = 'fr.zeamateis.usefulsaves'
 archivesBaseName = 'usefulsaves'
 

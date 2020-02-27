@@ -294,19 +294,9 @@ public class UsefulSavesCommand {
      */
     private static int processSave(MinecraftServer server, CommandSource commandSource, boolean flush, SchedulerManager manager) {
         SaveJob saveJob = new SaveJob();
-        List<Path> paths = UsefulSavesConfig.Common.savedFileWhitelist.get().stream().map(Paths::get).collect(Collectors.toList());
-        //Add default world to whitelist
-        server.getWorlds().forEach(serverWorld -> {
-            if (paths.stream().noneMatch(o -> o.equals(serverWorld.getSaveHandler().getWorldDirectory().toPath())))
-                paths.add(serverWorld.getSaveHandler().getWorldDirectory().toPath());
-            if (UsefulSavesConfig.Common.savedFileWhitelist.get().stream().noneMatch(o -> o.equals(serverWorld.getSaveHandler().getWorldDirectory().toPath().toString()))) {
-                UsefulSavesConfig.Common.savedFileWhitelist.get().add(serverWorld.getSaveHandler().getWorldDirectory().toPath().toString());
-                UsefulSavesConfig.Common.savedFileWhitelist.save();
-            }
-        });
         //Check emptyness and process save
-        if (!paths.isEmpty()) {
-            saveJob.setup(server, commandSource, flush, false, paths);
+        if (!manager.filesToSave(server).isEmpty()) {
+            saveJob.setup(server, commandSource, flush, false, manager.filesToSave(server));
             if (!manager.getSchedulerStatus().equals(SchedulerManager.SchedulerStatus.RUNNING))
                 manager.setStatus(SchedulerManager.SchedulerStatus.RUNNING_NO_TASKS);
             saveJob.processSave();

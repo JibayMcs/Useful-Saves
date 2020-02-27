@@ -122,19 +122,9 @@ public class SchedulerManager {
             //But pretty useless to define now for external user
             saveJob.getJobDataMap().put("deleteExisting", false);
 
-            List<Path> paths = UsefulSavesConfig.Common.savedFileWhitelist.get().stream().map(Paths::get).collect(Collectors.toList());
-            //Add default world to whitelist
-            server.getWorlds().forEach(serverWorld -> {
-                if (paths.stream().noneMatch(o -> o.equals(serverWorld.getSaveHandler().getWorldDirectory().toPath())))
-                    paths.add(serverWorld.getSaveHandler().getWorldDirectory().toPath());
-                if (UsefulSavesConfig.Common.savedFileWhitelist.get().stream().noneMatch(o -> o.equals(serverWorld.getSaveHandler().getWorldDirectory().toPath().toString()))) {
-                    UsefulSavesConfig.Common.savedFileWhitelist.get().add(serverWorld.getSaveHandler().getWorldDirectory().toPath().toString());
-                    UsefulSavesConfig.Common.savedFileWhitelist.save();
-                }
-            });
             //Check emptyness
-            if (!paths.isEmpty()) {
-                saveJob.getJobDataMap().putIfAbsent("sourceWhitelist", paths);
+            if (!filesToSave(server).isEmpty()) {
+                saveJob.getJobDataMap().putIfAbsent("sourceWhitelist", filesToSave(server));
             }
 
             scheduler.scheduleJob(saveJob, triggers, true);
@@ -143,6 +133,26 @@ public class SchedulerManager {
             e.printStackTrace();
         }
         return 1;
+    }
+
+    /**
+     * Create a list of paths usable without duplicated entries
+     */
+    public List<Path> filesToSave(MinecraftServer server) {
+        //Read whiteList config, filter non-existing files/folder and process
+        List<Path> whitelistPath = UsefulSavesConfig.Common.savedFileWhitelist.get().stream().map(Paths::get).filter(path -> path.toFile().exists()).collect(Collectors.toList());
+
+        server.getWorlds().forEach(serverWorld -> {
+            if (whitelistPath.stream().noneMatch(o -> o.equals(serverWorld.getSaveHandler().getWorldDirectory().toPath())))
+                whitelistPath.add(serverWorld.getSaveHandler().getWorldDirectory().toPath());
+            if (UsefulSavesConfig.Common.savedFileWhitelist.get().stream().noneMatch(o -> o.equals(serverWorld.getSaveHandler().getWorldDirectory().toPath().toString()))) {
+                UsefulSavesConfig.Common.savedFileWhitelist.get().add(serverWorld.getSaveHandler().getWorldDirectory().toPath().toString());
+                UsefulSavesConfig.Common.savedFileWhitelist.save();
+            }
+        });
+
+        //Check duplicated entry, collect and process
+        return whitelistPath.stream().distinct().filter(path -> path.toFile().exists()).collect(Collectors.toList());
     }
 
     /**
