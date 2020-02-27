@@ -1,28 +1,22 @@
 package fr.zeamateis.usefulsaves.server.commands;
 
-import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.BoolArgumentType;
-import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.context.CommandContext;
+import com.google.common.collect.Lists;
 import fr.zeamateis.usefulsaves.UsefulSaves;
-import fr.zeamateis.usefulsaves.server.commands.argument.CronArgumentType;
-import fr.zeamateis.usefulsaves.server.commands.argument.FileArgumentType;
-import fr.zeamateis.usefulsaves.server.commands.argument.TimeZoneArgumentType;
-import fr.zeamateis.usefulsaves.server.commands.argument.YesNoArgumentsType;
-import fr.zeamateis.usefulsaves.server.config.UsefulSavesConfig;
 import fr.zeamateis.usefulsaves.server.job.SaveJob;
 import fr.zeamateis.usefulsaves.server.job.SchedulerManager;
-import net.minecraft.command.CommandSource;
-import net.minecraft.command.Commands;
+import net.minecraft.command.CommandBase;
+import net.minecraft.command.CommandException;
+import net.minecraft.command.ICommandSender;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.text.TranslationTextComponent;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.text.TextComponentTranslation;
 import org.apache.commons.io.FileUtils;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.TriggerKey;
+import scala.actors.threadpool.Arrays;
 
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -39,11 +33,126 @@ import java.util.stream.Stream;
  *
  * @author ZeAmateis
  */
-public class UsefulSavesCommand {
+public class UsefulSavesCommand extends CommandBase {
 
     private static File fileToDelete;
+    private final SchedulerManager manager;
 
-    public static void register(CommandDispatcher<CommandSource> dispatcher, SchedulerManager manager) {
+    public UsefulSavesCommand(SchedulerManager manager) {
+        this.manager = manager;
+    }
+
+    private static int pauseTask(ICommandSender sender, SchedulerManager manager) {
+        if (manager.getScheduler() != null) {
+            try {
+                if (!manager.isPaused()) {
+                    manager.getScheduler().pauseAll();
+                    manager.setPaused(true);
+                    manager.setStatus(SchedulerManager.SchedulerStatus.PAUSED);
+                    sender.sendMessage(new TextComponentTranslation("usefulsaves.message.scheduled.pause"));
+                }
+            } catch (SchedulerException e) {
+                e.printStackTrace();
+            }
+        }
+        return 1;
+    }
+
+    private static int resumeTask(ICommandSender sender, SchedulerManager manager) {
+        if (manager.getScheduler() != null) {
+            try {
+                if (manager.isPaused()) {
+                    manager.getScheduler().resumeAll();
+                    manager.setPaused(false);
+                    manager.setStatus(SchedulerManager.SchedulerStatus.RUNNING);
+                    sender.sendMessage(new TextComponentTranslation("usefulsaves.message.scheduled.resume"));
+                }
+            } catch (SchedulerException e) {
+                e.printStackTrace();
+            }
+        }
+        return 1;
+    }
+
+    /**
+     * Process simple unscheduled save
+     */
+    private static int processSave(MinecraftServer server, ICommandSender sender, boolean flush, SchedulerManager manager) {
+        SaveJob saveJob = new SaveJob();
+        //Check emptyness and process save
+        if (!manager.filesToSave(server).isEmpty()) {
+            saveJob.setup(server, sender, flush, false, manager.filesToSave(server));
+            if (!manager.getSchedulerStatus().equals(SchedulerManager.SchedulerStatus.RUNNING))
+                manager.setStatus(SchedulerManager.SchedulerStatus.RUNNING_NO_TASKS);
+            saveJob.processSave();
+        }
+        return 1;
+    }
+
+    /**
+     * Clear backup folder, remove all backups files
+     */
+    private static int clearBackupFiles(ICommandSender sender) {
+        try {
+            FileUtils.cleanDirectory(UsefulSaves.getInstance().getBackupFolder());
+            sender.sendMessage(new TextComponentTranslation("usefulsaves.message.clearBackupFolder"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return 1;
+    }
+
+    /**
+     * Stop the {@link SaveJob} task
+     */
+    public static int unscheduleTask(ICommandSender sender, SchedulerManager manager) {
+        if (manager.unscheduleSaveJob()) {
+            sender.sendMessage(new TextComponentTranslation("usefulsaves.message.scheduled.stop"));
+        } else {
+            sender.sendMessage(new TextComponentTranslation("usefulsaves.message.scheduled.stop.notRunning"));
+        }
+        return 1;
+    }
+
+    /**
+     * Count how many files are in backup folder
+     */
+    private static void listBackup(ICommandSender sender) {
+        try (Stream<Path> walk = Files.walk(Paths.get(UsefulSaves.getInstance().getBackupFolder().getPath()))) {
+            List<String> backupList = walk
+                    .filter(Files::isRegularFile)
+                    .map(x -> x.getFileName().toString())
+                    .collect(Collectors.toList());
+            if (!backupList.isEmpty())
+                sender.sendMessage(new TextComponentTranslation("usefulsaves.message.backupCount", backupList.size()));
+            else
+                sender.sendMessage(new TextComponentTranslation("usefulsaves.message.backupCount.empty", backupList.size()));
+        } catch (IOException ignored) {
+        }
+    }
+
+    public static void printInfo(ICommandSender sender, SchedulerManager manager) {
+        if (manager.getScheduler() != null) {
+            List<TriggerKey> triggerKeys = manager.getTriggers().stream().filter(Objects::nonNull).map(Trigger::getKey).collect(Collectors.toList());
+            if (!triggerKeys.isEmpty()) {
+                try {
+                    sender.sendMessage(new TextComponentTranslation("usefulsaves.message.scheduled.runningSince", manager.getScheduler().getMetaData().getRunningSince(), manager.getSchedulerStatus()));
+                } catch (SchedulerException e) {
+                }
+            }
+            sender.sendMessage(new TextComponentTranslation("usefulsaves.message.scheduled.status", manager.getSchedulerStatus()));
+        }
+    }
+
+    /**
+     * Gets the name of the command
+     */
+    @Override
+    public String getName() {
+        return "useful-saves";
+    }
+
+    /*public static void register(SchedulerManager manager) {
         dispatcher.register(LiteralArgumentBuilder.<CommandSource>literal("useful-saves")
                 //Is player op ?
                 .requires(requierements -> requierements.hasPermissionLevel(4))
@@ -195,7 +304,7 @@ public class UsefulSavesCommand {
                                 )
                         )*/
                         //Define the backup folder
-                        .then(Commands.literal("backupFolder")
+                        /*.then(Commands.literal("backupFolder")
                                 .then(Commands.argument("folder", StringArgumentType.string())
                                         .executes(context -> {
                                             UsefulSavesConfig.Common.backupsFolder.set(StringArgumentType.getString(context, "folder"));
@@ -257,108 +366,125 @@ public class UsefulSavesCommand {
 
                 )
         );
+    }*/
+
+    /**
+     * Gets the usage string for the command.
+     *
+     * @param sender
+     */
+    @Override
+    public String getUsage(ICommandSender sender) {
+        return "";
     }
 
-    private static int pauseTask(CommandContext<CommandSource> context, SchedulerManager manager) {
-        if (manager.getScheduler() != null) {
-            try {
-                if (!manager.isPaused()) {
-                    manager.getScheduler().pauseAll();
-                    manager.setPaused(true);
-                    manager.setStatus(SchedulerManager.SchedulerStatus.PAUSED);
-                    context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.scheduled.pause"), false);
+    /**
+     * Get a list of aliases for this command. <b>Never return null!</b>
+     */
+    @Override
+    public List<String> getAliases() {
+        return Arrays.asList(new String[]{"useful-saves"});
+    }
+
+    /**
+     * Callback for when the command is executed
+     *
+     * @param server
+     * @param sender
+     * @param args
+     */
+    @Override
+    public void execute(MinecraftServer server, ICommandSender sender, String[] args) throws CommandException {
+
+    }
+
+    /**
+     * Return the required permission level for this command.
+     */
+    @Override
+    public int getRequiredPermissionLevel() {
+        return 3;
+    }
+
+    /**
+     * Check if the given ICommandSender has permission to execute this command
+     *
+     * @param server
+     * @param sender
+     */
+    @Override
+    public boolean checkPermission(MinecraftServer server, ICommandSender sender) {
+        return super.checkPermission(server, sender);
+    }
+
+    /**
+     * Get a list of options for when the user presses the TAB key
+     *
+     * @param server
+     * @param sender
+     * @param args
+     * @param targetPos
+     */
+    @Override
+    public List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args, @Nullable BlockPos targetPos) {
+        if (args.length > 0) {
+            switch (args.length) {
+                case 1:
+                    return Lists.newArrayList("clear-backups-folder", "delete", "confirm", "info", "config", "save-now", "schedule");
+                case 2: {
+                    switch (args[0]) {
+                        case "clear-backups-folder":
+                            return Lists.newArrayList();
+                        case "delete": {
+                            try (Stream<Path> walk = Files.walk(Paths.get(UsefulSaves.getInstance().getBackupFolder().getPath()))) {
+                                List<String> result = walk.filter(Files::isRegularFile)
+                                        .map(x -> x.getFileName().toString()).collect(Collectors.toList());
+                                return Lists.newArrayList(result);
+                            } catch (IOException ex) {
+                                return Lists.newArrayList();
+                            }
+                        }
+                        case "confirm": {
+                            return Lists.newArrayList("yes", "no");
+                        }
+                        case "save-now":
+                            return Lists.newArrayList("true", "false");
+                        case "config": {
+                            return Lists.newArrayList("printChatMessage", "enableTaskOnServerStart", "backupFolder",
+                                    "maximum-backups", "timeZone", "saveIfServerEmpty", "deleteOldOnMaximumReach");
+                        }
+                        case "schedule": {
+                            return Lists.newArrayList("cron", "stop", "pause", "resume", "restart");
+                        }
+                    }
                 }
-            } catch (SchedulerException e) {
-                e.printStackTrace();
+                case 3: {
+                    switch (args[1]) {
+                        case "printChatMessage":
+                        case "deleteOldOnMaximumReach":
+                        case "saveIfServerEmpty":
+                        case "enableTaskOnServerStart":
+                            return Lists.newArrayList("true", "false");
+                        case "maximum-backups":
+                            return Lists.newArrayList("-1", String.valueOf(Integer.MAX_VALUE));
+                        case "timeZone":
+                            return getListOfStringsMatchingLastWord(args, TimeZone.getAvailableIDs());
+                    }
+                }
             }
         }
-        return 1;
-    }
-
-    private static int resumeTask(CommandContext<CommandSource> context, SchedulerManager manager) {
-        if (manager.getScheduler() != null) {
-            try {
-                if (manager.isPaused()) {
-                    manager.getScheduler().resumeAll();
-                    manager.setPaused(false);
-                    manager.setStatus(SchedulerManager.SchedulerStatus.RUNNING);
-                    context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.scheduled.resume"), false);
-                }
-            } catch (SchedulerException e) {
-                e.printStackTrace();
-            }
-        }
-        return 1;
+        return Lists.newArrayList();
     }
 
     /**
-     * Process simple unscheduled save
+     * Return whether the specified command parameter index is a username parameter.
+     *
+     * @param args
+     * @param index
      */
-    private static int processSave(MinecraftServer server, CommandSource commandSource, boolean flush, SchedulerManager manager) {
-        SaveJob saveJob = new SaveJob();
-        //Check emptyness and process save
-        if (!manager.filesToSave(server).isEmpty()) {
-            saveJob.setup(server, commandSource, flush, false, manager.filesToSave(server));
-            if (!manager.getSchedulerStatus().equals(SchedulerManager.SchedulerStatus.RUNNING))
-                manager.setStatus(SchedulerManager.SchedulerStatus.RUNNING_NO_TASKS);
-            saveJob.processSave();
-        }
-        return 1;
-    }
-
-    /**
-     * Clear backup folder, remove all backups files
-     */
-    private static int clearBackupFiles(CommandContext<CommandSource> context) {
-        try {
-            FileUtils.cleanDirectory(UsefulSaves.getInstance().getBackupFolder());
-            context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.clearBackupFolder"), false);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return 1;
-    }
-
-    /**
-     * Stop the {@link SaveJob} task
-     */
-    public static int unscheduleTask(CommandContext<CommandSource> context, SchedulerManager manager) {
-        if (manager.unscheduleSaveJob()) {
-            context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.scheduled.stop"), false);
-        } else {
-            context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.scheduled.stop.notRunning"), false);
-        }
-        return 1;
-    }
-
-    /**
-     * Count how many files are in backup folder
-     */
-    private static void listBackup(CommandContext<CommandSource> context) {
-        try (Stream<Path> walk = Files.walk(Paths.get(UsefulSaves.getInstance().getBackupFolder().getPath()))) {
-            List<String> backupList = walk
-                    .filter(Files::isRegularFile)
-                    .map(x -> x.getFileName().toString())
-                    .collect(Collectors.toList());
-            if (!backupList.isEmpty())
-                context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.backupCount", backupList.size()), false);
-            else
-                context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.backupCount.empty", backupList.size()), false);
-        } catch (IOException ignored) {
-        }
-    }
-
-    public static void printInfo(CommandContext<CommandSource> context, SchedulerManager manager) {
-        if (manager.getScheduler() != null) {
-            List<TriggerKey> triggerKeys = manager.getTriggers().stream().filter(Objects::nonNull).map(Trigger::getKey).collect(Collectors.toList());
-            if (!triggerKeys.isEmpty()) {
-                try {
-                    context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.scheduled.runningSince", manager.getScheduler().getMetaData().getRunningSince(), manager.getSchedulerStatus()), false);
-                } catch (SchedulerException e) {
-                }
-            }
-            context.getSource().sendFeedback(new TranslationTextComponent("usefulsaves.message.scheduled.status", manager.getSchedulerStatus()), false);
-        }
+    @Override
+    public boolean isUsernameIndex(String[] args, int index) {
+        return false;
     }
 
 }

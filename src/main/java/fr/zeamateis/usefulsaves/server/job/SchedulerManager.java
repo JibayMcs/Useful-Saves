@@ -4,7 +4,7 @@ import fr.zeamateis.usefulsaves.UsefulSaves;
 import fr.zeamateis.usefulsaves.server.config.UsefulSavesConfig;
 import fr.zeamateis.usefulsaves.server.json.CronObject;
 import fr.zeamateis.usefulsaves.server.json.ScheduleObject;
-import net.minecraft.command.CommandSource;
+import net.minecraft.command.ICommandSender;
 import net.minecraft.server.MinecraftServer;
 import org.quartz.*;
 import org.quartz.impl.StdSchedulerFactory;
@@ -49,9 +49,9 @@ public class SchedulerManager {
     }
 
     private void updateTaskInConfig() {
-        if (UsefulSavesConfig.Common.enableTaskOnServerStart.get()) {
-            UsefulSavesConfig.Common.cronTaskObject.set(UsefulSaves.getInstance().getGson().toJson(UsefulSaves.getInstance().taskObject.get()));
-            UsefulSavesConfig.Common.cronTaskObject.save();
+        if (UsefulSavesConfig.enableTaskOnServerStart) {
+            UsefulSavesConfig.cronTaskObject = (UsefulSaves.getInstance().getGson().toJson(UsefulSaves.getInstance().taskObject.get()));
+            //UsefulSavesConfig.cronTaskObject.save();
         }
     }
 
@@ -87,14 +87,13 @@ public class SchedulerManager {
         return false;
     }
 
-    public int scheduleCronSave(boolean startNow, MinecraftServer server, CommandSource commandSource, String cronTask, TimeZone timeZone, boolean flush) {
+    public int scheduleCronSave(boolean startNow, MinecraftServer server, ICommandSender sender, String cronTask, TimeZone timeZone, boolean flush) {
         try {
             UsefulSaves.getInstance().taskObject.set(new ScheduleObject(new CronObject(cronTask), timeZone, flush));
             updateTaskInConfig();
 
-            if (!UsefulSavesConfig.Common.timeZone.get().equals(timeZone.getID())) {
-                UsefulSavesConfig.Common.timeZone.set(timeZone.getID());
-                UsefulSavesConfig.Common.timeZone.save();
+            if (!UsefulSavesConfig.timeZone.equals(timeZone.getID())) {
+                UsefulSavesConfig.timeZone = (timeZone.getID());
             }
 
             cronTrigger = TriggerBuilder.newTrigger()
@@ -115,7 +114,7 @@ public class SchedulerManager {
             triggers.add(cronTrigger);
 
             saveJob.getJobDataMap().put("server", server);
-            saveJob.getJobDataMap().put("commandSource", commandSource);
+            saveJob.getJobDataMap().put("commandSource", sender);
             saveJob.getJobDataMap().put("flush", flush);
             //TODO Define in config
             //But pretty useless to define now for external user
@@ -139,14 +138,13 @@ public class SchedulerManager {
      */
     public List<Path> filesToSave(MinecraftServer server) {
         //Read whiteList config, filter non-existing files/folder and process
-        List<Path> whitelistPath = UsefulSavesConfig.Common.savedFileWhitelist.get().stream().map(Paths::get).filter(path -> path.toFile().exists()).collect(Collectors.toList());
+        List<Path> whitelistPath = UsefulSavesConfig.savedFileWhitelist.keySet().stream().map(Paths::get).filter(path -> path.toFile().exists()).collect(Collectors.toList());
 
-        server.getWorlds().forEach(serverWorld -> {
+        Arrays.asList(server.worlds).forEach(serverWorld -> {
             if (whitelistPath.stream().noneMatch(o -> o.equals(serverWorld.getSaveHandler().getWorldDirectory().toPath())))
                 whitelistPath.add(serverWorld.getSaveHandler().getWorldDirectory().toPath());
-            if (UsefulSavesConfig.Common.savedFileWhitelist.get().stream().noneMatch(o -> o.equals(serverWorld.getSaveHandler().getWorldDirectory().toPath().toString()))) {
-                UsefulSavesConfig.Common.savedFileWhitelist.get().add(serverWorld.getSaveHandler().getWorldDirectory().toPath().toString());
-                UsefulSavesConfig.Common.savedFileWhitelist.save();
+            if (UsefulSavesConfig.savedFileWhitelist.keySet().stream().noneMatch(o -> o.equals(serverWorld.getSaveHandler().getWorldDirectory().toPath().toString()))) {
+                UsefulSavesConfig.savedFileWhitelist.put("path", serverWorld.getSaveHandler().getWorldDirectory().toPath().toString());
             }
         });
 

@@ -1,0 +1,19 @@
+[
+  {
+    "modid": "usefulsaves",
+    "name": "Useful Saves",
+    "description": "Schedule save task to never lose anything !\nBackup your world, and extras files !",
+    "version": "${version}",
+    "mcversion": "${mcversion}",
+    "url": "",
+    "updateUrl": "",
+    "authorList": [
+      "ZeAmateis",
+      "Protozis"
+    ],
+    "credits": "Thanks to §o*insert host without free offers for backups*§r to bring me this idea to saves files",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": []
+  }
+]

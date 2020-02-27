@@ -11,7 +11,7 @@ import net.minecraft.util.text.ITextComponent;
 public class MessageUtils {
 
     public static void printMessageForAllPlayers(MinecraftServer server, ITextComponent message) {
-        if (UsefulSavesConfig.Common.printMessage.get())
+        if (UsefulSavesConfig.printMessage)
             server.getPlayerList().getPlayers().forEach(serverPlayerEntity -> serverPlayerEntity.sendMessage(message));
     }
 
